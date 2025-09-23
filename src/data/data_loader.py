@@ -17,35 +17,30 @@ class DataLoader:
     def __init__(self):
         self.config = get_config()
 
-    def load_actividades_economicas(self, encoding: str = 'latin1') -> pd.DataFrame:
+    def load_actividades_economicas(self, encoding: str = 'utf-8') -> pd.DataFrame:
         """
-        Carga el dataset principal de actividades económicas.
+        Carga el dataset limpio de actividades económicas de Madrid.
 
         Args:
             encoding: Codificación del archivo
 
         Returns:
-            DataFrame con los datos de actividades económicas
+            DataFrame con los datos de actividades económicas ya limpios
         """
         file_path = get_data_file_path('actividades')
 
         try:
-            df = pd.read_csv(file_path, encoding=encoding)
-            logger.info(f"Dataset de actividades cargado: {df.shape}")
+            df = pd.read_csv(file_path, encoding=encoding, low_memory=False)
+            logger.info(f"Dataset limpio de actividades cargado: {df.shape}")
+            logger.info(f"Columnas disponibles: {list(df.columns)}")
+            logger.info(f"Variable objetivo 'actividad' presente: {'actividad' in df.columns}")
             return df
         except FileNotFoundError:
             logger.error(f"Archivo no encontrado: {file_path}")
             raise
         except Exception as e:
             logger.error(f"Error al cargar actividades económicas: {e}")
-            # Intentar con ruta alternativa para Windows
-            alt_path = str(file_path).replace("/Users/alexandrobazan", "C:\\Users\\alex_")
-            try:
-                df = pd.read_csv(alt_path, encoding=encoding)
-                logger.info(f"Dataset cargado desde ruta alternativa: {df.shape}")
-                return df
-            except:
-                raise e
+            raise e
 
     def load_renta_poblacion(self) -> pd.DataFrame:
         """
@@ -74,20 +69,29 @@ class DataLoader:
             except:
                 raise e
 
-    def load_all_data(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def load_clean_data(self) -> pd.DataFrame:
         """
-        Carga todos los datasets del proyecto.
+        Carga el dataset limpio que ya incluye datos de renta y población.
 
         Returns:
-            Tupla con (df_actividades, df_renta)
+            DataFrame con datos limpios y completos
         """
-        logger.info("Iniciando carga de todos los datasets...")
+        logger.info("Cargando dataset limpio...")
 
-        df_actividades = self.load_actividades_economicas()
-        df_renta = self.load_renta_poblacion()
+        df_clean = self.load_actividades_economicas()
 
-        logger.info("Todos los datasets cargados exitosamente")
-        return df_actividades, df_renta
+        # Verificar que tenga las columnas esperadas
+        required_cols = ['actividad', 'Renta_Media', 'Total_Poblacion', 'Fecha_Reporte']
+        missing_cols = [col for col in required_cols if col not in df_clean.columns]
+
+        if missing_cols:
+            logger.error(f"Faltan columnas requeridas: {missing_cols}")
+            raise ValueError(f"Dataset incompleto. Faltan: {missing_cols}")
+
+        logger.info("Dataset limpio cargado exitosamente")
+        logger.info(f"Distribución de actividad: {df_clean['actividad'].value_counts().to_dict()}")
+
+        return df_clean
 
     def validate_data_files(self) -> bool:
         """

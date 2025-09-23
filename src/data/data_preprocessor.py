@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
 """
-Módulo para preprocesamiento de datos antes del modelado.
+Módulo simplificado para preprocesamiento de datos siguiendo la lógica especificada.
 """
 
 import pandas as pd
@@ -8,238 +9,119 @@ import logging
 from typing import Dict, List, Tuple, Any
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
-from unidecode import unidecode
 import joblib
 from src.utils.config import get_config
 
 logger = logging.getLogger(__name__)
 
 class DataPreprocessor:
-    """Clase para preprocesamiento completo de datos."""
+    """Clase para preprocesamiento simplificado de datos."""
 
     def __init__(self):
         self.config = get_config()
-        self.categorical_vars = self.config['categorical_variables']
         self.scaler = None
 
-    def merge_with_renta_data(self, df_actividades: pd.DataFrame,
-                             df_renta: pd.DataFrame) -> pd.DataFrame:
+    def preprocess_data(self, df: pd.DataFrame) -> Dict[str, Any]:
         """
-        Fusiona datos de actividades con datos de renta y población.
+        Pipeline completo de preprocesamiento siguiendo la lógica especificada.
 
         Args:
-            df_actividades: DataFrame de actividades económicas
-            df_renta: DataFrame con renta y población
+            df: DataFrame limpio cargado
 
         Returns:
-            DataFrame fusionado
+            Diccionario con datasets preparados
         """
-        logger.info("Fusionando datos de actividades con renta y población...")
+        logger.info("="*60)
+        logger.info("INICIANDO PREPROCESAMIENTO SIMPLIFICADO")
+        logger.info("="*60)
 
-        # Normalizar nombres de barrios
-        articulos = {'el', 'la', 'los', 'las'}
+        # Asegúrate de tener una copia original si necesitas rescatar algo como Fecha_Reporte
+        df_original = df.copy()
 
-        def normalizar_avanzado(texto):
-            texto = unidecode(str(texto)).lower().strip()
-            palabras = texto.split()
-            if palabras and palabras[0] in articulos:
-                palabras = palabras[1:]
-            return ''.join(palabras)
+        # BLOQUE 2: Definir columnas categóricas preferidas (ELIMINAMOS desc_distrito_local)
+        preferidas = [
+            col for col in ['desc_barrio_local', 'desc_tipo_acceso_local', 'desc_seccion']
+            if col in df.columns
+        ]
 
-        # Crear mapeo para barrios
-        mapa_barrios_df = {
-            normalizar_avanzado(barrio): barrio
-            for barrio in df_actividades['desc_barrio_local'].unique()
-            if pd.notna(barrio)
-        }
+        logger.info(f"✅ Variables categóricas a procesar (SIN distrito): {preferidas}")
 
-        df_renta_copy = df_renta.copy()
-        df_renta_copy['Barrio_norm'] = df_renta_copy['Barrio'].apply(
-            lambda x: mapa_barrios_df.get(normalizar_avanzado(x), x)
-        )
+        # BLOQUE 3: Separar variable objetivo
+        y = df['actividad']
+        logger.info(f"Variable objetivo extraída. Distribución: {y.value_counts().to_dict()}")
 
-        # Normalizar distritos
-        df_actividades_copy = df_actividades.copy()
-        df_actividades_copy['distrito_norm'] = df_actividades_copy['desc_distrito_local'].str.strip().str.lower()
-        df_renta_copy['distrito_norm'] = df_renta_copy['Distrito'].str.strip().str.lower()
+        # BLOQUE 4: Filtrar variables categóricas preferidas con baja cardinalidad
+        cat_vars = df[preferidas].select_dtypes(include='object').columns
+        cardinalidades = df[cat_vars].nunique()
+        cat_vars_baja_card = cardinalidades[cardinalidades <= 30].index.tolist()
+        logger.info(f"Variables que se transformarán en dummies: {cat_vars_baja_card}")
 
-        mapa_distritos = df_actividades_copy.drop_duplicates(subset='distrito_norm').set_index('distrito_norm')['desc_distrito_local'].to_dict()
-        df_renta_copy['Distrito_norm'] = df_renta_copy['distrito_norm'].map(mapa_distritos)
+        # BLOQUE 5: Crear dummies de variables seleccionadas
+        df = pd.get_dummies(df, columns=cat_vars_baja_card, drop_first=True)
+        logger.info(f"Variables dummy creadas. Nuevas dimensiones: {df.shape}")
 
-        # Preparar columnas para merge
-        df_renta_copy['Año'] = df_renta_copy['Año_Poblacion'].astype(str)
-        df_actividades_copy['Año_str'] = df_actividades_copy['Año'].astype(str)
-
-        # Realizar merge
-        df_merged = df_actividades_copy.merge(
-            df_renta_copy[['Barrio_norm', 'Distrito_norm', 'Año', 'Total_Poblacion', 'Renta_Media']],
-            how='left',
-            left_on=['desc_barrio_local', 'desc_distrito_local', 'Año_str'],
-            right_on=['Barrio_norm', 'Distrito_norm', 'Año']
-        )
-
-        # Limpiar columnas temporales
-        columns_to_drop = ['Barrio_norm', 'Distrito_norm', 'Año_str',
-                          'distrito_norm', 'Año']
-        df_merged = df_merged.drop(columns=columns_to_drop, errors='ignore')
-
-        # Ajustar Total_Poblacion (convertir de miles a unidades)
-        df_merged['Total_Poblacion'] = (df_merged['Total_Poblacion'] * 1000).astype('Int64')
-
-        logger.info(f"Merge completado. Shape: {df_merged.shape}")
-        logger.info(f"Valores nulos en Total_Poblacion: {df_merged['Total_Poblacion'].isna().sum()}")
-        logger.info(f"Valores nulos en Renta_Media: {df_merged['Renta_Media'].isna().sum()}")
-
-        return df_merged
-
-    def create_dummy_variables(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Crea variables dummy para variables categóricas seleccionadas.
-
-        Args:
-            df: DataFrame original
-
-        Returns:
-            DataFrame con variables dummy
-        """
-        logger.info("Creando variables dummy...")
-
-        df_processed = df.copy()
-
-        # Filtrar variables categóricas que existen en el DataFrame
-        existing_cat_vars = [var for var in self.categorical_vars if var in df_processed.columns]
-
-        # Filtrar por cardinalidad (<=30 categorías)
-        cat_vars_to_process = []
-        for var in existing_cat_vars:
-            if df_processed[var].nunique() <= 30:
-                cat_vars_to_process.append(var)
-
-        logger.info(f"Variables categóricas a procesar: {cat_vars_to_process}")
-
-        # Crear variables dummy
-        if cat_vars_to_process:
-            df_processed = pd.get_dummies(
-                df_processed,
-                columns=cat_vars_to_process,
-                drop_first=True,
-                prefix_sep='_'
-            )
-
-        logger.info(f"Variables dummy creadas. Nuevas dimensiones: {df_processed.shape}")
-        return df_processed
-
-    def remove_unnecessary_variables(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Elimina variables no necesarias para el modelado.
-
-        Args:
-            df: DataFrame con todas las variables
-
-        Returns:
-            DataFrame con variables relevantes para modelado
-        """
-        logger.info("Eliminando variables innecesarias...")
-
-        # Variables a eliminar
-        variables_to_remove = [
-            'actividad', 'rotulo', 'desc_vial_acceso', 'Fecha_Reporte',
-            'Mes', 'Año', 'num_acceso', 'cal_acceso', 'latitud_local',
-            'longitud_local', 'id_local', 'id_distrito_local', 'cod_barrio_local',
+        # BLOQUE 6: Eliminar variables no deseadas después de crear dummies
+        variables_a_eliminar = [
+            'actividad', 'rotulo', 'desc_vial_acceso', 'Fecha_Reporte', 'Mes', 'Año',
+            'num_acceso', 'cal_acceso', 'latitud_local', 'longitud_local',
+            'id_local', 'id_distrito_local', 'cod_barrio_local',
             'id_tipo_acceso_local', 'id_seccion', 'id_epigrafe', 'desc_epigrafe',
             'id_division', 'desc_division', 'desc_situacion_local',
-            'desc_situacion_recodificada', 'desc_situacion'
+            'clase_vial_acceso', 'nom_acceso'
         ]
 
-        # Agregar dummies de variables eliminadas
-        dummy_prefixes_to_remove = [
-            'id_', 'desc_epigrafe_', 'desc_division_', 'id_seccion_',
-            'desc_distrito_local_', 'cod_barrio_local_'
-        ]
+        # IMPORTANTE: También eliminar TODAS las variables de distrito que se hayan creado
+        dummies_a_excluir = [col for col in df.columns if col.startswith((
+            'id_', 'cod_barrio_local_', 'latitud_local', 'longitud_local', 'desc_epigrafe_',
+            'desc_division_', 'id_seccion_', 'desc_distrito_local_'  # ← CLAVE: Eliminar variables distrito
+        ))]
 
-        # Encontrar columnas que empiecen con los prefijos
-        cols_to_remove = []
-        for col in df.columns:
-            if any(col.startswith(prefix) for prefix in dummy_prefixes_to_remove):
-                cols_to_remove.append(col)
+        variables_a_eliminar += dummies_a_excluir
+        df = df.drop(columns=[col for col in variables_a_eliminar if col in df.columns], errors='ignore')
 
-        variables_to_remove.extend(cols_to_remove)
+        # VERIFICACIÓN: Asegurar que no quedan variables de distrito
+        distrito_cols_restantes = [col for col in df.columns if 'distrito' in col.lower()]
+        if distrito_cols_restantes:
+            logger.info(f"⚠️ ELIMINANDO variables de distrito restantes: {distrito_cols_restantes}")
+            df = df.drop(columns=distrito_cols_restantes, errors='ignore')
 
-        # Eliminar variables que existen
-        existing_vars_to_remove = [var for var in variables_to_remove if var in df.columns]
-        df_clean = df.drop(columns=existing_vars_to_remove, errors='ignore')
-
-        # Eliminar columnas no numéricas restantes
-        non_numeric_cols = df_clean.select_dtypes(include=['object', 'string']).columns.tolist()
+        # BLOQUE 7: Eliminar columnas no numéricas que aún queden (seguridad)
+        non_numeric_cols = df.select_dtypes(include=['object', 'string']).columns.tolist()
         if non_numeric_cols:
-            logger.info(f"Eliminando columnas no numéricas: {non_numeric_cols}")
-            df_clean = df_clean.drop(columns=non_numeric_cols)
+            logger.info(f"⚠️ Eliminando columnas no numéricas restantes: {non_numeric_cols}")
+            df = df.drop(columns=non_numeric_cols)
 
-        logger.info(f"Variables eliminadas: {len(existing_vars_to_remove)}")
-        logger.info(f"Dimensiones finales: {df_clean.shape}")
+        # BLOQUE 8: Añadir Fecha_Reporte para particionar
+        df['Fecha_Reporte'] = df_original['Fecha_Reporte']
 
-        return df_clean
+        # BLOQUE 9: Separar train y test
+        X_train = df[df['Fecha_Reporte'] < 202401].drop(columns=['Fecha_Reporte'])
+        X_test = df[df['Fecha_Reporte'] >= 202401].drop(columns=['Fecha_Reporte'])
+        y_train = y.loc[X_train.index]
+        y_test = y.loc[X_test.index]
 
-    def split_train_test_temporal(self, df: pd.DataFrame, y: pd.Series,
-                                 split_date: int = 202401) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
-        """
-        Divide datos en train/test usando criterio temporal.
-
-        Args:
-            df: DataFrame con variable Fecha_Reporte
-            y: Variable objetivo
-            split_date: Fecha de corte en formato YYYYMM
-
-        Returns:
-            Tupla con (X_train, X_test, y_train, y_test)
-        """
-        logger.info(f"Dividiendo datos temporalmente. Corte: {split_date}")
-
-        # Asegurar que Fecha_Reporte esté disponible
-        if 'Fecha_Reporte' not in df.columns:
-            raise ValueError("Columna Fecha_Reporte no encontrada")
-
-        # Crear máscaras temporales
-        train_mask = df['Fecha_Reporte'] < split_date
-        test_mask = df['Fecha_Reporte'] >= split_date
-
-        # Dividir datasets
-        X_train = df[train_mask].drop(columns=['Fecha_Reporte'])
-        X_test = df[test_mask].drop(columns=['Fecha_Reporte'])
-        y_train = y[train_mask]
-        y_test = y[test_mask]
-
-        # Alinear columnas (en caso de diferencias)
-        X_train, X_test = X_train.align(X_test, join='left', axis=1, fill_value=0)
-
-        logger.info(f"Train set: {X_train.shape}, Test set: {X_test.shape}")
+        logger.info(f"División temporal completada:")
+        logger.info(f"Train set: {X_train.shape} (antes de {202401})")
+        logger.info(f"Test set: {X_test.shape} (desde {202401})")
         logger.info(f"Distribución train - Activos: {y_train.mean():.2%}")
         logger.info(f"Distribución test - Activos: {y_test.mean():.2%}")
 
-        return X_train, X_test, y_train, y_test
+        # BLOQUE 10: Alinear columnas entre train y test
+        X_train, X_test = X_train.align(X_test, join='left', axis=1, fill_value=0)
 
-    def scale_features(self, X_train: pd.DataFrame, X_test: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, StandardScaler]:
-        """
-        Escala las variables usando StandardScaler.
+        # VERIFICACIÓN FINAL: Confirmar que Renta_Media está presente
+        if 'Renta_Media' in X_train.columns:
+            logger.info("✅ Renta_Media confirmada en el dataset")
+        else:
+            logger.warning("⚠️ ADVERTENCIA: Renta_Media no encontrada en el dataset")
 
-        Args:
-            X_train: Dataset de entrenamiento
-            X_test: Dataset de prueba
-
-        Returns:
-            Tupla con (X_train_scaled, X_test_scaled, scaler)
-        """
-        logger.info("Escalando variables...")
-
-        # Crear y ajustar scaler solo en train
+        # BLOQUE 11: Estandarización
         scaler = StandardScaler()
         X_train_scaled = pd.DataFrame(
             scaler.fit_transform(X_train),
             columns=X_train.columns,
             index=X_train.index
         )
-
-        # Transformar test con el mismo scaler
         X_test_scaled = pd.DataFrame(
             scaler.transform(X_test),
             columns=X_test.columns,
@@ -248,49 +130,31 @@ class DataPreprocessor:
 
         self.scaler = scaler
 
-        logger.info("Escalado completado")
-        return X_train_scaled, X_test_scaled, scaler
+        # BLOQUE 12: Mostrar variables finales
+        logger.info(f"\n📋 Variables finales en X_train_scaled ({len(X_train_scaled.columns)} variables):")
+        for i, col in enumerate(X_train_scaled.columns, start=1):
+            logger.info(f"{i:3}: {col}")
 
-    def prepare_for_modeling(self, df: pd.DataFrame) -> Dict[str, Any]:
-        """
-        Pipeline completo de preparación para modelado.
+        # VERIFICACIÓN DE MULTICOLINEALIDAD
+        logger.info("\n🔍 Verificando correlaciones con Renta_Media:")
+        if 'Renta_Media' in X_train_scaled.columns:
+            correlaciones_altas = []
+            for col in X_train_scaled.columns:
+                if col != 'Renta_Media':
+                    corr = abs(X_train_scaled['Renta_Media'].corr(X_train_scaled[col]))
+                    if corr > 0.7:  # Correlación alta
+                        correlaciones_altas.append((col, corr))
 
-        Args:
-            df: DataFrame limpio
+            if correlaciones_altas:
+                logger.info("⚠️ Variables con correlación alta con Renta_Media (>0.7):")
+                for col, corr in sorted(correlaciones_altas, key=lambda x: x[1], reverse=True):
+                    logger.info(f"   {col}: {corr:.4f}")
+            else:
+                logger.info("✅ No se detectaron correlaciones altas con Renta_Media")
+        else:
+            logger.info("⚠️ No se pudo verificar correlaciones - Renta_Media no encontrada")
 
-        Returns:
-            Diccionario con datasets preparados y objetos auxiliares
-        """
-        logger.info("="*60)
-        logger.info("INICIANDO PREPARACIÓN PARA MODELADO")
-        logger.info("="*60)
-
-        # 1. Extraer variable objetivo
-        if 'actividad' not in df.columns:
-            raise ValueError("Variable objetivo 'actividad' no encontrada")
-
-        y = df['actividad']
-        logger.info(f"Variable objetivo extraída. Distribución: {y.value_counts().to_dict()}")
-
-        # 2. Crear variables dummy
-        df_with_dummies = self.create_dummy_variables(df)
-
-        # 3. Conservar Fecha_Reporte para división temporal
-        fecha_reporte = df_with_dummies['Fecha_Reporte'].copy()
-
-        # 4. Eliminar variables innecesarias
-        df_clean = self.remove_unnecessary_variables(df_with_dummies)
-
-        # 5. Reincorporar Fecha_Reporte
-        df_clean['Fecha_Reporte'] = fecha_reporte
-
-        # 6. División temporal train/test
-        X_train, X_test, y_train, y_test = self.split_train_test_temporal(df_clean, y)
-
-        # 7. Escalado de variables
-        X_train_scaled, X_test_scaled, scaler = self.scale_features(X_train, X_test)
-
-        # 8. Guardar datasets procesados
+        # Guardar datasets procesados
         self.save_processed_datasets({
             'X_train': X_train,
             'X_test': X_test,
@@ -302,7 +166,7 @@ class DataPreprocessor:
         })
 
         logger.info("="*60)
-        logger.info("PREPARACIÓN COMPLETADA")
+        logger.info("PREPROCESAMIENTO COMPLETADO")
         logger.info(f"Variables finales: {X_train_scaled.shape[1]}")
         logger.info(f"Train samples: {len(X_train_scaled)}")
         logger.info(f"Test samples: {len(X_test_scaled)}")

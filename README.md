@@ -9,7 +9,10 @@ Este proyecto utiliza técnicas de Machine Learning para predecir la inactividad
 - **Dataset**: +8 millones de registros de locales comerciales de Madrid
 - **Variables**: Geolocalización, tipo de acceso, clasificación CNAE, renta per cápita, población
 - **Modelos**: Regresión Logística, Random Forest, XGBoost, SVM, MLP, Ensambles
-- **Resultados**: Hasta 91% de exactitud y AUC > 0.85
+- **Resultados (test 2024)**:
+  - **Accuracy**: 0.88–0.89 (mejores modelos: MLP, Regresión Logística, Random Forest, SVM)
+  - **F1-score**: ~0.925 (MLP, RF, LR, SVM)
+  - **AUC ROC**: ~0.85 (máx. 0.854 con Voting/MLP)
 - **Interpretabilidad**: Análisis SHAP para explicabilidad del modelo
 
 ## Estructura del Proyecto
@@ -74,14 +77,12 @@ madrid-commercial-prediction/
 ## Instalación
 
 ### 1. Clonar el repositorio
-
 ```bash
 git clone https://github.com/tu-usuario/madrid-commercial-prediction.git
 cd madrid-commercial-prediction
 ```
 
 ### 2. Crear entorno virtual
-
 ```bash
 # Con venv
 python -m venv venv
@@ -93,13 +94,11 @@ conda activate madrid_prediction
 ```
 
 ### 3. Instalar dependencias
-
 ```bash
 pip install -r requirements.txt
 ```
 
 ### 4. Configurar variables de entorno
-
 ```bash
 cp .env.example .env
 # Editar .env con tus rutas y configuraciones
@@ -108,13 +107,11 @@ cp .env.example .env
 ## Uso
 
 ### Ejecución completa del pipeline
-
 ```bash
 python -m src.main
 ```
 
 ### Ejecución por módulos
-
 ```bash
 # Solo procesamiento de datos
 python -m src.data.data_preprocessor
@@ -155,22 +152,33 @@ data/raw/
 
 ## Modelos Implementados
 
+> **Notas:**
+> - Métricas en test (enero–diciembre 2024).
+> - Modelo seleccionado por equilibrio rendimiento/parsimonia: **MLP**.
+
 | Modelo | AUC | F1-Score | Accuracy | Características |
 |--------|-----|----------|----------|----------------|
-| MLP | 0.8540 | 0.9253 | 0.8848 | **Mejor equilibrio** |
-| VotingClassifier | 0.8541 | 0.9242 | 0.8828 | Ensamble robusto |
-| Random Forest | 0.8489 | 0.9250 | 0.8841 | Interpretable |
-| XGBoost | 0.8491 | 0.9151 | 0.8673 | Gradiente boosting |
-| Regresión Logística | 0.8475 | 0.9253 | 0.8848 | Baseline sólido |
+| **MLP** | **0.8540** | **0.9253** | **0.8848** | Mejor equilibrio global; alta sensibilidad y buena especificidad |
+| VotingClassifier | 0.8541 | 0.9242 | 0.8828 | Ensamble robusto (RF + XGB + MLP, soft voting) |
+| Random Forest | 0.8489 | 0.9250 | 0.8841 | Alto recall en clase positiva; interpretable por importancia de variables |
+| XGBoost | 0.8491 | 0.9151 | 0.8673 | Buen AUC; algo más conservador en especificidad |
+| Regresión Logística | 0.8475 | 0.9253 | 0.8848 | Baseline sólido y estable |
+| SVM | 0.8179 | 0.9254 | 0.8848 | F1 máximo; AUC inferior; buen balance precisión/recall |
+| KNN | 0.8189 | 0.9028 | 0.8498 | Correcto en datasets reducidos; menor discriminación |
+| Decision Tree | 0.7418 | 0.8820 | 0.8098 | Simple, interpretable; rendimiento más bajo |
+| StackingClassifier | 0.8316 | 0.8936 | 0.8409 | Mejora limitada frente a modelos individuales |
 
 ## Variables Más Importantes
 
-Según análisis SHAP:
-1. `desc_seccion_sin_actividad` - Indicador de falta de actividad
-2. `desc_tipo_acceso_local_puerta_calle` - Acceso directo desde la calle
-3. `Renta_Media` - Renta media del distrito
-4. `Total_Poblacion` - Población del barrio
-5. `desc_seccion_hosteleria` - Pertenencia al sector hostelería
+Según análisis SHAP (modelo MLP):
+
+1. **desc_seccion_sin_actividad** — Indicador de falta de actividad (impacto negativo fuerte)
+2. **desc_tipo_acceso_local_puerta_calle** — Acceso directo desde la calle (impacto positivo)
+3. **Renta_Media** — Renta media del distrito (mayor renta, mayor probabilidad de actividad)
+4. **Total_Poblacion** — Población del barrio (impacto positivo moderado)
+5. **desc_seccion_hosteleria** — Presencia del sector hostelería (impacto positivo)
+
+Otras variables con efecto menor o dependiente del contexto: desc_seccion_comercio al por mayor y al por menor; reparación de vehículos..., desc_seccion_construccion, desc_seccion_informacion y comunicaciones, desc_seccion_educacion, entre otras.
 
 ## Resultados y Casos de Uso
 
@@ -209,11 +217,12 @@ python -m pytest tests/test_data/
 
 ## Licencia
 
-Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para detalles.
+Este proyecto está bajo la Licencia MIT - ver el archivo LICENSE para detalles.
 
 ## Autor
 
 **Alexandro Bazán Guardia**
+
 - Email: alexandro.bazan9712@gmail.com
 - LinkedIn: https://www.linkedin.com/in/alexandrobg/
 - Universidad Complutense de Madrid - Máster en Ciencia de Datos e Inteligencia de Negocios

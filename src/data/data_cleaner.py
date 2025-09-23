@@ -281,29 +281,15 @@ class DataCleaner:
     def process_dates(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Procesa fechas y crea variables temporales.
-
-        Args:
-            df: DataFrame con fechas
-
-        Returns:
-            DataFrame con fechas procesadas
         """
         df_clean = df.copy()
-
+        
         if 'Fecha_Reporte' in df_clean.columns:
-            # Convertir a datetime si es necesario
-            if df_clean['Fecha_Reporte'].dtype == 'object':
-                df_clean['Fecha_Reporte'] = pd.to_datetime(df_clean['Fecha_Reporte'])
-
-            # Convertir a formato YYYYMM
-            df_clean['Fecha_Reporte'] = pd.to_datetime(df_clean['Fecha_Reporte'], errors='coerce').dt.strftime('%Y%m').astype(int)
-
-            # Crear variables de año y mes
+            # Las fechas ya vienen en formato YYYYMM correcto, solo crear Año y Mes
             df_clean['Año'] = df_clean['Fecha_Reporte'] // 100
             df_clean['Mes'] = df_clean['Fecha_Reporte'] % 100
-
             logger.info("Fechas procesadas y variables temporales creadas")
-
+        
         return df_clean
 
     def normalize_ids(self, df: pd.DataFrame) -> pd.DataFrame:

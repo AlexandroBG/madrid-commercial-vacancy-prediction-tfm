@@ -28,7 +28,7 @@ for directory in [DATA_DIR, RAW_DATA_DIR, PROCESSED_DATA_DIR, EXTERNAL_DATA_DIR,
 
 # Archivos de datos
 DATA_FILES = {
-    'actividades': RAW_DATA_DIR / "Actividades Economicas de Madrid.csv",
+    'actividades': RAW_DATA_DIR / "MadridActividades.csv",
     'renta_poblacion': RAW_DATA_DIR / "RentaPOB.xlsx",
 }
 
@@ -134,9 +134,8 @@ TEXT_PROCESSING_CONFIG = {
     'remove_extra_spaces': True
 }
 
-# Variables categóricas a procesar
+# Variables categóricas a procesar (ELIMINAMOS desc_distrito_local)
 CATEGORICAL_VARIABLES = [
-    'desc_distrito_local',
     'desc_barrio_local',
     'desc_tipo_acceso_local',
     'desc_seccion'
@@ -144,19 +143,12 @@ CATEGORICAL_VARIABLES = [
 
 # Variables a eliminar durante el preprocesamiento
 COLUMNS_TO_DROP = [
-    'coordenada_y_agrupacion',
-    'fx_carga',
-    'fx_datos_fin',
-    'coordenada_x_agrupacion',
-    'coordenada_y_agrup',
-    'id_vial_acceso',
-    'id_clase_ndp_edificio',
-    'id_clase_ndp_acceso',
-    'id_local_agrupado',
-    'id_ndp_acceso',
-    'vial_coinciden',
-    'duplicado',
-    'id_planta_agrupado_str'
+    'actividad', 'rotulo', 'desc_vial_acceso', 'Fecha_Reporte', 'Mes', 'Año',
+    'num_acceso', 'cal_acceso', 'latitud_local', 'longitud_local',
+    'id_local', 'id_distrito_local', 'cod_barrio_local',
+    'id_tipo_acceso_local', 'id_seccion', 'id_epigrafe', 'desc_epigrafe',
+    'id_division', 'desc_division', 'desc_situacion_local',
+    'clase_vial_acceso', 'nom_acceso', 'cal_acceso'
 ]
 
 # Configuración de logging

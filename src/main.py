@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Script principal para ejecutar el pipeline completo de predicción comercial Madrid.
 """
@@ -33,12 +34,12 @@ def setup_project():
 
     return config, logger
 
-def load_and_clean_data(force_reload: bool = False) -> pd.DataFrame:
+def load_clean_data(force_reload: bool = False) -> pd.DataFrame:
     """
-    Carga y limpia los datos, usando cache si está disponible.
+    Carga los datos limpios desde el archivo MadridActividades.csv.
 
     Args:
-        force_reload: Si True, fuerza la recarga y limpieza completa
+        force_reload: Si True, fuerza la recarga completa
 
     Returns:
         DataFrame limpio y listo para procesamiento
@@ -52,32 +53,24 @@ def load_and_clean_data(force_reload: bool = False) -> pd.DataFrame:
             logger.info(f"Datos limpios cargados desde cache: {df_clean.shape}")
             return df_clean
 
-    logger.info("Cargando y limpiando datos desde archivos originales...")
+    logger.info("Cargando datos limpios desde MadridActividades.csv...")
 
-    # Cargar datos raw
+    # Cargar datos limpios directamente
     data_loader = DataLoader()
     if not data_loader.validate_data_files():
         raise FileNotFoundError("Faltan archivos de datos requeridos")
 
-    df_actividades, df_renta = data_loader.load_all_data()
-
-    # Limpiar datos de actividades
-    cleaner = DataCleaner()
-    df_clean = cleaner.clean_full_dataset(df_actividades)
-
-    # Merge con datos de renta
-    preprocessor = DataPreprocessor()
-    df_final = preprocessor.merge_with_renta_data(df_clean, df_renta)
+    df_clean = data_loader.load_clean_data()
 
     # Guardar datos limpios
-    save_processed_data(df_final, 'df_limpio', format='pickle')
-    logger.info(f"Datos limpios guardados. Shape final: {df_final.shape}")
+    save_processed_data(df_clean, 'df_limpio', format='pickle')
+    logger.info(f"Datos limpios guardados. Shape final: {df_clean.shape}")
 
-    return df_final
+    return df_clean
 
 def run_feature_engineering(df: pd.DataFrame, force_reload: bool = False) -> dict:
     """
-    Ejecuta ingeniería de características y selección de variables.
+    Ejecuta preprocesamiento simplificado y selección de variables.
 
     Args:
         df: DataFrame limpio
@@ -96,8 +89,8 @@ def run_feature_engineering(df: pd.DataFrame, force_reload: bool = False) -> dic
             models_dir = config['paths']['models_dir']
 
             datasets = {
-                'X_train': joblib.load(models_dir / 'X_train_scaled.joblib'),
-                'X_test': joblib.load(models_dir / 'X_test_scaled.joblib'),
+                'X_train_scaled': joblib.load(models_dir / 'X_train_scaled.joblib'),
+                'X_test_scaled': joblib.load(models_dir / 'X_test_scaled.joblib'),
                 'y_train': joblib.load(models_dir / 'y_train.joblib'),
                 'y_test': joblib.load(models_dir / 'y_test.joblib'),
                 'scaler': joblib.load(models_dir / 'scaler.joblib')
@@ -113,13 +106,13 @@ def run_feature_engineering(df: pd.DataFrame, force_reload: bool = False) -> dic
         except Exception as e:
             logger.info(f"No se pudieron cargar datos en cache: {e}")
 
-    logger.info("Ejecutando ingeniería de características...")
+    logger.info("Ejecutando preprocesamiento simplificado...")
 
-    # Preprocesamiento
+    # Preprocesamiento simplificado
     preprocessor = DataPreprocessor()
-    datasets = preprocessor.prepare_for_modeling(df)
+    datasets = preprocessor.preprocess_data(df)
 
-    # Selección de características
+    # Selección de características usando todas las variables disponibles
     feature_selector = FeatureSelector()
     selected_features = feature_selector.run_boruta_selection(
         datasets['X_train_scaled'],
@@ -232,13 +225,13 @@ def main():
         config, logger = setup_project()
 
         if not args.model_only:
-            # 1. Cargar y limpiar datos
-            logger.info("PASO 1: Carga y limpieza de datos")
+            # 1. Cargar datos limpios
+            logger.info("PASO 1: Carga de datos limpios")
             logger.info("="*50)
-            df_clean = load_and_clean_data(force_reload=args.force_reload)
+            df_clean = load_clean_data(force_reload=args.force_reload)
 
-            # 2. Ingeniería de características
-            logger.info("\nPASO 2: Ingeniería de características")
+            # 2. Preprocesamiento y selección de características
+            logger.info("\nPASO 2: Preprocesamiento y selección de características")
             logger.info("="*50)
             feature_results = run_feature_engineering(df_clean, force_reload=args.force_reload)
         else:
