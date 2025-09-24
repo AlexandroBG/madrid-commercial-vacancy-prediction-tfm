@@ -1,21 +1,48 @@
 # Predicción de Actividad Comercial en Madrid
 
-## Descripción
+[![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Status](https://img.shields.io/badge/Status-Production-green.svg)](https://github.com/alexandrobg/madrid-commercial-prediction)
 
-Este proyecto utiliza técnicas de Machine Learning para predecir la inactividad de locales comerciales en Madrid mediante el análisis de datos administrativos del Ayuntamiento de Madrid (2020-2024), enriquecidos con datos socioeconómicos.
+## Resumen Ejecutivo
 
-## Características del Proyecto
+Este proyecto implementa un sistema de Machine Learning para predecir la inactividad de locales comerciales en Madrid, utilizando datos administrativos del Ayuntamiento de Madrid (2020-2024) enriquecidos con indicadores socioeconómicos. El modelo principal (MLP) alcanza una precisión del 88.48% y un AUC de 0.854, proporcionando una herramienta robusta para la toma de decisiones en planificación urbana y política comercial.
 
-- **Dataset**: +8 millones de registros de locales comerciales de Madrid
-- **Variables**: Geolocalización, tipo de acceso, clasificación CNAE, renta per cápita, población
-- **Modelos**: Regresión Logística, Random Forest, XGBoost, SVM, MLP, Ensambles
-- **Resultados (test 2024)**:
-  - **Accuracy**: 0.88–0.89 (mejores modelos: MLP, Regresión Logística, Random Forest, SVM)
-  - **F1-score**: ~0.925 (MLP, RF, LR, SVM)
-  - **AUC ROC**: ~0.85 (máx. 0.854 con Voting/MLP)
+## Descripción del Proyecto
+
+### Contexto y Motivación
+
+Madrid, como capital económica de España, concentra más de 60,000 establecimientos comerciales que emplean directamente a más de 305,000 personas. Sin embargo, eventos como la pandemia COVID-19 y cambios en los patrones de consumo han generado cierres comerciales desiguales según ubicación y sector. Este proyecto aborda la necesidad de anticipar estos cierres para optimizar políticas públicas y decisiones de inversión privada.
+
+### Características Técnicas
+
+- **Dataset**: 8.3+ millones de registros históricos (2020-2024)
+- **Variables**: Geolocalización, clasificación CNAE, tipo de acceso, renta per cápita, población
+- **Metodología**: SEMMA (SAS Enterprise Miner) con validación temporal
+- **Modelos**: 9 algoritmos diferentes con optimización de hiperparámetros
 - **Interpretabilidad**: Análisis SHAP para explicabilidad del modelo
 
-## Estructura del Proyecto
+## Resultados Principales
+
+### Rendimiento de Modelos (Conjunto de Test 2024)
+
+| Modelo | AUC | F1-Score | Accuracy | Características |
+|--------|-----|----------|----------|----------------|
+| **MLP** | **0.8540** | **0.9253** | **0.8848** | Mejor equilibrio global; seleccionado por parsimonia |
+| VotingClassifier | 0.8541 | 0.9242 | 0.8828 | Ensamble robusto (RF + XGB + MLP) |
+| Random Forest | 0.8489 | 0.9250 | 0.8841 | Alto recall; interpretable |
+| XGBoost | 0.8491 | 0.9151 | 0.8673 | Buen AUC; conservador en especificidad |
+| Regresión Logística | 0.8475 | 0.9253 | 0.8848 | Baseline sólido y estable |
+
+### Variables Más Influyentes (Análisis SHAP)
+
+1. **desc_seccion_sin_actividad** — Indicador de falta de actividad (impacto negativo)
+2. **desc_tipo_acceso_local_puerta_calle** — Acceso directo desde calle (impacto positivo)
+3. **Renta_Media** — Renta media del distrito (mayor renta → mayor actividad)
+4. **Total_Poblacion** — Población del barrio (impacto positivo moderado)
+5. **desc_seccion_hosteleria** — Presencia del sector hostelería (impacto positivo)
+
+## Arquitectura del Proyecto
 
 ```
 madrid-commercial-prediction/
@@ -25,93 +52,87 @@ madrid-commercial-prediction/
 ├── .gitignore
 ├── .env.example
 ├── data/
-│   ├── raw/
-│   ├── processed/
-│   └── external/
+│   ├── raw/                    # Datos originales
+│   ├── processed/              # Datos procesados
+│   └── external/               # Fuentes externas
 ├── src/
-│   ├── __init__.py
 │   ├── data/
-│   │   ├── __init__.py
-│   │   ├── data_loader.py
-│   │   ├── data_cleaner.py
-│   │   └── data_preprocessor.py
+│   │   ├── data_loader.py      # Carga de datos
+│   │   ├── data_cleaner.py     # Limpieza y normalización
+│   │   └── data_preprocessor.py # Preprocesamiento
 │   ├── features/
-│   │   ├── __init__.py
-│   │   ├── feature_selector.py
+│   │   ├── feature_selector.py  # Selección de variables (Boruta, RFECV, etc.)
 │   │   └── feature_engineering.py
 │   ├── models/
-│   │   ├── __init__.py
-│   │   ├── base_model.py
-│   │   ├── train_models.py
-│   │   └── model_evaluation.py
+│   │   ├── train_models.py     # Entrenamiento de 9 modelos
+│   │   └── model_evaluation.py # Evaluación y comparación
 │   ├── visualization/
-│   │   ├── __init__.py
-│   │   ├── plots.py
-│   │   └── maps.py
+│   │   ├── plots.py            # Gráficos comparativos
+│   │   └── maps.py             # Mapas geoespaciales
 │   └── utils/
-│       ├── __init__.py
-│       ├── config.py
-│       └── helpers.py
+│       ├── config.py           # Configuración
+│       └── helpers.py          # Utilidades
 ├── notebooks/
 │   ├── 01_exploratory_data_analysis.ipynb
 │   ├── 02_feature_engineering.ipynb
 │   ├── 03_model_training.ipynb
 │   └── 04_model_interpretation.ipynb
-├── models/
-│   └── saved_models/
 ├── results/
-│   ├── figures/
-│   ├── reports/
-│   └── predictions/
-├── tests/
-│   ├── __init__.py
-│   ├── test_data/
-│   ├── test_features/
-│   └── test_models/
-└── docs/
-    ├── methodology.md
-    ├── data_dictionary.md
-    └── api_documentation.md
+│   ├── figures/                # Curvas ROC, matrices de confusión, SHAP
+│   ├── reports/                # Reportes CSV y HTML
+│   └── predictions/            # Predicciones finales
+└── models/
+    └── saved_models/           # Modelos entrenados (.pkl)
 ```
 
-## Instalación
+## Instalación y Uso
 
-### 1. Clonar el repositorio
+### Prerrequisitos
+
+- Python 3.9+
+- 16GB+ RAM (recomendado para dataset completo)
+- Espacio en disco: 5GB+
+
+### Instalación
+
 ```bash
-git clone https://github.com/tu-usuario/madrid-commercial-prediction.git
+# 1. Clonar repositorio
+git clone https://github.com/alexandrobg/madrid-commercial-prediction.git
 cd madrid-commercial-prediction
-```
 
-### 2. Crear entorno virtual
-```bash
-# Con venv
+# 2. Crear entorno virtual
 python -m venv venv
-source venv/bin/activate  # En Windows: venv\Scripts\activate
+source venv/bin/activate  # Linux/Mac
+# venv\Scripts\activate   # Windows
 
-# Con conda (alternativo)
-conda create -n madrid_prediction python=3.9
-conda activate madrid_prediction
-```
-
-### 3. Instalar dependencias
-```bash
+# 3. Instalar dependencias
 pip install -r requirements.txt
-```
 
-### 4. Configurar variables de entorno
-```bash
+# 4. Configurar variables de entorno
 cp .env.example .env
-# Editar .env con tus rutas y configuraciones
+# Editar .env con rutas personalizadas
 ```
 
-## Uso
+### Datos Requeridos
 
-### Ejecución completa del pipeline
+Coloque los siguientes archivos en `data/raw/`:
+
+```
+data/raw/
+├── Actividades Economicas de Madrid.csv  # Datos del Ayuntamiento
+└── RentaPOB.xlsx                        # Datos socioeconómicos
+```
+
+**Enlace a dataset principal**: [Google Drive](https://drive.google.com/file/d/17HAOjSxzSkesvHLXmwoyr__u_nAywIL9/view?usp=drive_link)
+
+### Ejecución
+
+#### Pipeline Completo (Recomendado)
 ```bash
 python -m src.main
 ```
 
-### Ejecución por módulos
+#### Ejecución Modular
 ```bash
 # Solo procesamiento de datos
 python -m src.data.data_preprocessor
@@ -123,119 +144,124 @@ python -m src.models.train_models
 python -m src.models.model_evaluation
 ```
 
-### Usando notebooks
+#### Uso con Notebooks Jupyter
+```bash
+jupyter notebook notebooks/
+```
 
 Los notebooks están organizados secuencialmente:
-
 1. `01_exploratory_data_analysis.ipynb` - Análisis exploratorio
 2. `02_feature_engineering.ipynb` - Ingeniería de características
 3. `03_model_training.ipynb` - Entrenamiento de modelos
-4. `04_model_interpretation.ipynb` - Interpretabilidad con SHAP
+4. `04_model_interpretation.ipynb` - Interpretabilidad SHAP
 
-## Datos Requeridos
+## Metodología Técnica
 
-### Archivo principal
-- `Actividades Economicas de Madrid.csv` - Datos del Ayuntamiento de Madrid
+### Preprocesamiento de Datos
 
-### Archivo complementario
-- `RentaPOB.xlsx` - Datos de renta per cápita y población
+1. **Limpieza**: Imputación de coordenadas geográficas, normalización de texto, corrección de inconsistencias
+2. **Ingeniería de Variables**: One-hot encoding, estandarización Z-score, creación de variable objetivo binaria
+3. **Selección de Variables**: 5 métodos comparados (Boruta seleccionado como óptimo)
 
-### Estructura de datos esperada
+### Modelos Implementados
 
-Coloque los archivos de datos en la carpeta `data/raw/`:
+- **Algoritmos Base**: Regresión Logística, Árboles de Decisión, Random Forest, SVM, KNN, XGBoost, MLP
+- **Ensambles**: VotingClassifier (soft voting), StackingClassifier
+- **Optimización**: GridSearchCV y RandomizedSearchCV con validación cruzada estratificada
+- **Validación**: División temporal (entrenamiento: 2020-2023, test: 2024)
 
-```
-data/raw/
-├── Actividades Economicas de Madrid.csv
-└── RentaPOB.xlsx
-```
+### Métricas de Evaluación
 
-## Modelos Implementados
+- **Accuracy**: Exactitud global
+- **Precision/Recall**: Balance falsos positivos/negativos
+- **F1-Score**: Media armónica precision-recall
+- **AUC-ROC**: Capacidad discriminativa
+- **Especificidad**: Detección de verdaderos negativos
 
-> **Notas:**
-> - Métricas en test (enero–diciembre 2024).
-> - Modelo seleccionado por equilibrio rendimiento/parsimonia: **MLP**.
+## Aplicaciones Prácticas
 
-| Modelo | AUC | F1-Score | Accuracy | Características |
-|--------|-----|----------|----------|----------------|
-| **MLP** | **0.8540** | **0.9253** | **0.8848** | Mejor equilibrio global; alta sensibilidad y buena especificidad |
-| VotingClassifier | 0.8541 | 0.9242 | 0.8828 | Ensamble robusto (RF + XGB + MLP, soft voting) |
-| Random Forest | 0.8489 | 0.9250 | 0.8841 | Alto recall en clase positiva; interpretable por importancia de variables |
-| XGBoost | 0.8491 | 0.9151 | 0.8673 | Buen AUC; algo más conservador en especificidad |
-| Regresión Logística | 0.8475 | 0.9253 | 0.8848 | Baseline sólido y estable |
-| SVM | 0.8179 | 0.9254 | 0.8848 | F1 máximo; AUC inferior; buen balance precisión/recall |
-| KNN | 0.8189 | 0.9028 | 0.8498 | Correcto en datasets reducidos; menor discriminación |
-| Decision Tree | 0.7418 | 0.8820 | 0.8098 | Simple, interpretable; rendimiento más bajo |
-| StackingClassifier | 0.8316 | 0.8936 | 0.8409 | Mejora limitada frente a modelos individuales |
+### Casos de Uso
 
-## Variables Más Importantes
+- **Planificación Urbana**: Identificación de zonas comerciales en riesgo
+- **Política Pública**: Focalización de ayudas y subvenciones
+- **Inversión Privada**: Evaluación de ubicaciones comerciales
+- **Transparencia**: Open data para ciudadanía y investigadores
 
-Según análisis SHAP (modelo MLP):
+### Implementación Recomendada
 
-1. **desc_seccion_sin_actividad** — Indicador de falta de actividad (impacto negativo fuerte)
-2. **desc_tipo_acceso_local_puerta_calle** — Acceso directo desde la calle (impacto positivo)
-3. **Renta_Media** — Renta media del distrito (mayor renta, mayor probabilidad de actividad)
-4. **Total_Poblacion** — Población del barrio (impacto positivo moderado)
-5. **desc_seccion_hosteleria** — Presencia del sector hostelería (impacto positivo)
+1. **API Interna**: Despliegue como servicio REST para departamentos municipales
+2. **Dashboard Interactivo**: Visualización en tiempo real de predicciones
+3. **Alertas Automáticas**: Sistema de notificaciones para zonas de alto riesgo
+4. **Explicabilidad**: Reportes SHAP para justificar decisiones
 
-Otras variables con efecto menor o dependiente del contexto: desc_seccion_comercio al por mayor y al por menor; reparación de vehículos..., desc_seccion_construccion, desc_seccion_informacion y comunicaciones, desc_seccion_educacion, entre otras.
-
-## Resultados y Casos de Uso
-
-### Aplicaciones
-- **Planificación urbana**: Identificar zonas de riesgo comercial
-- **Política pública**: Focalizar ayudas y subvenciones
-- **Inversión privada**: Evaluar ubicaciones comerciales
-- **Transparencia**: Open data para ciudadanía
-
-### Visualizaciones
-- Mapas interactivos de actividad comercial
-- Curvas ROC comparativas
-- Gráficos SHAP de interpretabilidad
-- Análisis temporal de evolución
-
-## Testing
-
-Ejecutar las pruebas:
+## Testing y Calidad
 
 ```bash
-# Todas las pruebas
-python -m pytest tests/
+# Ejecutar todas las pruebas
+python -m pytest tests/ -v
 
-# Pruebas específicas
-python -m pytest tests/test_models/
-python -m pytest tests/test_data/
+# Pruebas específicas por módulo
+python -m pytest tests/test_models/ -v
+python -m pytest tests/test_data/ -v
+python -m pytest tests/test_features/ -v
 ```
 
-## Contribuir
+### Cobertura de Pruebas
 
-1. Fork el proyecto
-2. Crear una rama para tu feature (`git checkout -b feature/nueva-funcionalidad`)
-3. Commit tus cambios (`git commit -m 'Agregar nueva funcionalidad'`)
-4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
-5. Abrir un Pull Request
+- Validación de carga de datos
+- Pruebas de transformación y limpieza
+- Validación de modelos entrenados
+- Tests de integración del pipeline completo
 
-## Licencia
+## Contribuciones
 
-Este proyecto está bajo la Licencia MIT - ver el archivo LICENSE para detalles.
+### Proceso de Contribución
 
-## Autor
+1. Fork del proyecto
+2. Crear rama feature: `git checkout -b feature/nueva-funcionalidad`
+3. Commit cambios: `git commit -m 'Descripción clara'`
+4. Push: `git push origin feature/nueva-funcionalidad`
+5. Abrir Pull Request con descripción detallada
+
+### Estándares de Código
+
+- PEP 8 para estilo de Python
+- Docstrings en todas las funciones públicas
+- Type hints cuando sea apropiado
+- Tests unitarios para nueva funcionalidad
+
+## Información del Proyecto
+
+### Autoría
 
 **Alexandro Bazán Guardia**
+Máster en Ciencia de Datos e Inteligencia de Negocios
+Universidad Complutense de Madrid
 
-- Email: alexandro.bazan9712@gmail.com
-- LinkedIn: https://www.linkedin.com/in/alexandrobg/
-- Universidad Complutense de Madrid - Máster en Ciencia de Datos e Inteligencia de Negocios
+- **Email**: alexandro.bazan9712@gmail.com
+- **LinkedIn**: [alexandrobg](https://www.linkedin.com/in/alexandrobg/)
+- **GitHub**: [alexandrobg](https://github.com/alexandrobg)
 
-## Agradecimientos
+### Supervisión Académica
 
-- Facultad de Estudios Estadísticos - Universidad Complutense de Madrid
-- Ayuntamiento de Madrid por los datos públicos
-- Tutora: Belén Rodríguez-Cánovas
+**Tutora**: Belén Rodríguez-Cánovas
+Facultad de Estudios Estadísticos - Universidad Complutense de Madrid
 
-## Citas
+### Agradecimientos
 
-Si usas este trabajo en tu investigación, por favor cita:
+- Facultad de Estudios Estadísticos - UCM por el soporte académico
+- Ayuntamiento de Madrid por el acceso a datos públicos
+- Comunidad open source por las librerías utilizadas
+
+## Licencia y Citación
+
+### Licencia
+
+Este proyecto está bajo la **Licencia MIT**. Ver archivo `LICENSE` para detalles completos.
+
+### Cita Académica
+
+Si utiliza este trabajo en investigación académica, por favor cite:
 
 ```bibtex
 @mastersthesis{bazan2025madrid,
@@ -243,6 +269,32 @@ Si usas este trabajo en tu investigación, por favor cita:
   author={Bazán Guardia, Alexandro},
   year={2025},
   school={Universidad Complutense de Madrid},
-  type={Trabajo de Fin de Máster}
+  type={Trabajo de Fin de Máster},
+  url={https://github.com/alexandrobg/madrid-commercial-prediction}
 }
 ```
+
+### Referencias Principales
+
+- Ayuntamiento de Madrid. (2025). *Actividades Económicas de Madrid* [Dataset]
+- Breiman, L. (2001). Random forests. *Machine Learning*, 45(1), 5-32
+- Lundberg, S., & Lee, S. (2017). A unified approach to interpreting model predictions. *NIPS*
+
+## Roadmap y Desarrollo Futuro
+
+### Versión Actual (v1.0)
+- ✅ Pipeline completo de ML
+- ✅ 9 modelos comparados
+- ✅ Análisis SHAP
+- ✅ Documentación completa
+
+### Próximas Versiones
+- 🔄 API REST para predicciones en tiempo real
+- 🔄 Dashboard web interactivo
+- 🔄 Integración con datos en streaming
+- 🔄 Modelos de deep learning (LSTM, Transformer)
+- 🔄 Análisis de series temporales avanzado
+
+---
+
+**Status**: Producción | **Última actualización**: Septiembre 2025 | **Versión**: 1.0.0
