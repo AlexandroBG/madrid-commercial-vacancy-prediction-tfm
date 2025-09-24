@@ -229,53 +229,34 @@ class FeatureSelector:
 
         return top_vars_shap
 
-    def compare_selection_methods(self, selected_features_boruta: List[str],
-                                 selected_features_rfe: List[str],
-                                 vars_stepwise: List[str],
-                                 vars_sbf: List[str],
-                                 top_vars_shap: List[str] = None) -> Dict[str, List[str]]:
+    def compare_selection_methods(self, all_vars: Dict[str, List[str]]) -> Dict[str, List[str]]:
         """
         Compara múltiples métodos de selección de características.
         """
         logger.info("Comparando métodos de selección de características...")
 
-        # Diccionario con todos los métodos
-        all_vars = {
-            "Boruta": set(selected_features_boruta),
-            "RFE": set(selected_features_rfe),
-            "Stepwise": set(vars_stepwise),
-            "SBF": set(vars_sbf),
-        }
-
-        if top_vars_shap:
-            all_vars["SHAP"] = set(top_vars_shap)
+        # Convertir listas a sets para comparación
+        all_vars_sets = {method: set(vars) for method, vars in all_vars.items()}
 
         # Ver en cuántos métodos aparece cada variable
-        all_selected = list(chain.from_iterable(all_vars.values()))
+        all_selected = list(chain.from_iterable(all_vars_sets.values()))
         counter = Counter(all_selected)
         common_vars = [var for var, count in counter.items() if count > 1]
 
         logger.info(f"Variables comunes en 2+ métodos: {common_vars}")
 
         # Guardar variables de cada método en archivos
-        self._save_method_variables(selected_features_boruta, 'boruta')
-        self._save_method_variables(selected_features_rfe, 'rfe')
-        self._save_method_variables(vars_stepwise, 'stepwise')
-        self._save_method_variables(vars_sbf, 'sbf')
-        if top_vars_shap:
-            self._save_method_variables(top_vars_shap, 'shap')
+        for method, vars_list in all_vars.items():
+            self._save_method_variables(vars_list, method.lower())
 
         # Análisis de consenso
-        self._analyze_consensus(all_vars)
+        self._analyze_consensus(all_vars_sets)
 
-        return {
-            "Boruta": selected_features_boruta,
-            "RFE": selected_features_rfe,
-            "Stepwise": vars_stepwise,
-            "SBF": vars_sbf,
-            "SHAP": top_vars_shap if top_vars_shap else [],
-            "Common": common_vars
-        }
+        # Agregar variables comunes al diccionario
+        result = all_vars.copy()
+        result["Common"] = common_vars
+
+        return result
 
     def evaluate_variable_sets(self, X_train_scaled: pd.DataFrame, X_test_scaled: pd.DataFrame,
                               y_train: pd.Series, y_test: pd.Series,
@@ -476,6 +457,91 @@ class FeatureSelector:
             logger.info(f"{method}: {len(features)} características")
 
         logger.info("="*60)
+
+    def run_all_selection_methods(self, X_train_scaled: pd.DataFrame, X_test_scaled: pd.DataFrame,
+                                  y_train: pd.Series, y_test: pd.Series) -> Dict[str, List[str]]:
+        """
+        Ejecuta todos los métodos de selección de características disponibles.
+
+        Args:
+            X_train_scaled: Variables de entrenamiento escaladas
+            X_test_scaled: Variables de test escaladas
+            y_train: Variable objetivo de entrenamiento
+            y_test: Variable objetivo de test
+
+        Returns:
+            Diccionario con las variables seleccionadas por cada método
+        """
+        logger.info("="*70)
+        logger.info("EJECUTANDO TODOS LOS MÉTODOS DE SELECCIÓN DE CARACTERÍSTICAS")
+        logger.info("="*70)
+
+        all_selected = {}
+
+        # 1. Boruta
+        try:
+            logger.info("1/5 - Ejecutando Boruta...")
+            selected_boruta = self.run_boruta_selection(X_train_scaled, y_train)
+            all_selected['Boruta'] = selected_boruta
+        except Exception as e:
+            logger.error(f"Error en Boruta: {e}")
+            all_selected['Boruta'] = []
+
+        # 2. RFECV
+        try:
+            logger.info("2/5 - Ejecutando RFECV...")
+            selected_rfecv = self.run_rfecv_selection(X_train_scaled, y_train)
+            all_selected['RFECV'] = selected_rfecv
+        except Exception as e:
+            logger.error(f"Error en RFECV: {e}")
+            all_selected['RFECV'] = []
+
+        # 3. Stepwise
+        try:
+            logger.info("3/5 - Ejecutando Stepwise...")
+            selected_stepwise = self.run_stepwise_selection(X_train_scaled, y_train)
+            all_selected['Stepwise'] = selected_stepwise
+        except Exception as e:
+            logger.error(f"Error en Stepwise: {e}")
+            all_selected['Stepwise'] = []
+
+        # 4. SBF
+        try:
+            logger.info("4/5 - Ejecutando SBF...")
+            selected_sbf = self.run_sbf_selection(X_train_scaled, y_train)
+            all_selected['SBF'] = selected_sbf
+        except Exception as e:
+            logger.error(f"Error en SBF: {e}")
+            all_selected['SBF'] = []
+
+        # 5. SHAP
+        try:
+            logger.info("5/5 - Ejecutando SHAP...")
+            selected_shap = self.run_shap_selection(X_train_scaled, y_train, X_test_scaled)
+            all_selected['SHAP'] = selected_shap
+        except Exception as e:
+            logger.error(f"Error en SHAP: {e}")
+            all_selected['SHAP'] = []
+
+        # Comparar métodos
+        logger.info("\nComparando métodos de selección...")
+        comparison_results = self.compare_selection_methods(all_selected)
+
+        # Evaluar conjuntos de variables
+        logger.info("\nEvaluando conjuntos de variables...")
+        evaluation_results = self.evaluate_variable_sets(
+            X_train_scaled, X_test_scaled, y_train, y_test, all_selected
+        )
+
+        logger.info("="*70)
+        logger.info("SELECCIÓN DE CARACTERÍSTICAS COMPLETADA")
+        logger.info("="*70)
+
+        return {
+            'selected_features': all_selected,
+            'comparison_results': comparison_results,
+            'evaluation_results': evaluation_results
+        }
 
     def load_selected_features(self, method_name: str) -> List[str]:
         """

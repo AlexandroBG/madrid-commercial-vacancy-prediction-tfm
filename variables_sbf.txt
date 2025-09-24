@@ -1,0 +1,13 @@
+Total_Poblacion
+desc_tipo_acceso_local_pc asociado
+desc_tipo_acceso_local_puerta calle
+desc_seccion_actividades artisticas, recreativas y de entretenimiento
+desc_seccion_actividades inmobiliarias
+desc_seccion_actividades sanitarias y de servicios sociales
+desc_seccion_administracion publica y defensa; seguridad social obligatoria
+desc_seccion_comercio al por mayor y al por menor; reparacion de vehiculos de motor y motocicletas
+desc_seccion_construccion
+desc_seccion_educacion
+desc_seccion_hosteleria
+desc_seccion_industria manufacturera
+desc_seccion_sin actividad

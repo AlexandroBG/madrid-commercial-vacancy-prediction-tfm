@@ -1,0 +1,26 @@
+feature,methods_count,methods
+desc_seccion_sin actividad,5,"Boruta, RFECV, Stepwise, SBF, SHAP"
+Total_Poblacion,4,"Boruta, Stepwise, SBF, SHAP"
+desc_seccion_actividades sanitarias y de servicios sociales,4,"Boruta, Stepwise, SBF, SHAP"
+desc_tipo_acceso_local_puerta calle,4,"Boruta, Stepwise, SBF, SHAP"
+Renta_Media,4,"Boruta, RFECV, Stepwise, SHAP"
+desc_tipo_acceso_local_pc asociado,4,"Boruta, Stepwise, SBF, SHAP"
+desc_seccion_comercio al por mayor y al por menor; reparacion de vehiculos de motor y motocicletas,4,"Boruta, Stepwise, SBF, SHAP"
+desc_seccion_hosteleria,4,"Boruta, Stepwise, SBF, SHAP"
+desc_seccion_otros servicios,3,"Boruta, Stepwise, SHAP"
+"desc_seccion_actividades artisticas, recreativas y de entretenimiento",3,"Boruta, SBF, SHAP"
+desc_seccion_industria manufacturera,3,"Stepwise, SBF, SHAP"
+desc_seccion_educacion,3,"Boruta, SBF, SHAP"
+"desc_seccion_actividades profesionales, cientificas y tecnicas",3,"Boruta, Stepwise, SHAP"
+desc_seccion_actividades inmobiliarias,3,"Stepwise, SBF, SHAP"
+desc_seccion_construccion,3,"Stepwise, SBF, SHAP"
+desc_seccion_informacion y comunicaciones,2,"Stepwise, SHAP"
+desc_seccion_actividades de organizaciones y organismos extraterritoriales,2,"Stepwise, SHAP"
+desc_seccion_administracion publica y defensa; seguridad social obligatoria,2,"SBF, SHAP"
+desc_seccion_transporte y almacenamiento,2,"Stepwise, SHAP"
+desc_seccion_actividades financieras y de seguros,2,"Boruta, SHAP"
+"desc_seccion_suministro de agua, actividades de saneamiento, gestion de residuos y descontaminacion",1,SHAP
+desc_seccion_industrias extractivas,1,SHAP
+"desc_seccion_suministro de energía elactrica, gas, vapor y aire acondicionado",1,SHAP
+"desc_seccion_agricultura, ganaderia, silvicultura y pesca",1,SHAP
+desc_tipo_acceso_local_interior,1,SHAP

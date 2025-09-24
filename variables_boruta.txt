@@ -1,0 +1,13 @@
+Total_Poblacion
+Renta_Media
+desc_tipo_acceso_local_pc asociado
+desc_tipo_acceso_local_puerta calle
+desc_seccion_actividades artisticas, recreativas y de entretenimiento
+desc_seccion_actividades financieras y de seguros
+desc_seccion_actividades profesionales, cientificas y tecnicas
+desc_seccion_actividades sanitarias y de servicios sociales
+desc_seccion_comercio al por mayor y al por menor; reparacion de vehiculos de motor y motocicletas
+desc_seccion_educacion
+desc_seccion_hosteleria
+desc_seccion_otros servicios
+desc_seccion_sin actividad

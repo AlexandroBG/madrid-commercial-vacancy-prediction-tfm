@@ -1,0 +1,26 @@
+variable,mean_abs_shap
+desc_seccion_sin actividad,0.7811009971938443
+Renta_Media,0.36953038703319485
+desc_tipo_acceso_local_puerta calle,0.17984092204248114
+Total_Poblacion,0.10854354875635104
+desc_seccion_comercio al por mayor y al por menor; reparacion de vehiculos de motor y motocicletas,0.10386357701435926
+desc_seccion_hosteleria,0.08409814392576632
+desc_seccion_actividades sanitarias y de servicios sociales,0.05781040574378663
+desc_seccion_educacion,0.03679086512999389
+desc_seccion_otros servicios,0.01993347252512148
+desc_tipo_acceso_local_pc asociado,0.017774665737475208
+desc_seccion_actividades financieras y de seguros,0.014786003041783211
+"desc_seccion_actividades artisticas, recreativas y de entretenimiento",0.012854392335449785
+desc_seccion_administracion publica y defensa; seguridad social obligatoria,0.011981107390546133
+desc_seccion_construccion,0.00949298165796036
+desc_seccion_actividades inmobiliarias,0.005900408358481058
+desc_seccion_informacion y comunicaciones,0.004696289919350585
+desc_seccion_transporte y almacenamiento,0.0037330057700908194
+"desc_seccion_actividades profesionales, cientificas y tecnicas",0.0034080512784812377
+desc_seccion_industria manufacturera,0.00291064727842433
+desc_seccion_actividades de organizaciones y organismos extraterritoriales,0.0010086264223255884
+"desc_seccion_suministro de agua, actividades de saneamiento, gestion de residuos y descontaminacion",0.00039316521036972637
+"desc_seccion_suministro de energía elactrica, gas, vapor y aire acondicionado",6.952992000998648e-05
+"desc_seccion_agricultura, ganaderia, silvicultura y pesca",1.445526808863219e-06
+desc_seccion_industrias extractivas,0.0
+desc_tipo_acceso_local_interior,0.0

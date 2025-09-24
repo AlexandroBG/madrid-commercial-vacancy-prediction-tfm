@@ -19,16 +19,23 @@ from sklearn.svm import SVC
 from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+from sklearn.feature_selection import RFECV, SequentialFeatureSelector, VarianceThreshold
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score,
     roc_auc_score, roc_curve, confusion_matrix, classification_report,
     ConfusionMatrixDisplay, RocCurveDisplay
 )
+from joblib import parallel_backend
 import xgboost as xgb
 import joblib
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import loguniform
+import statsmodels.api as sm
+import shap
+import numpy as np
+from collections import Counter
+from itertools import chain
 import time
 import psutil
 from src.utils.config import get_config
@@ -533,7 +540,7 @@ class ModelTrainer:
         cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=12345)
 
         # GridSearchCV con backend threading para menor uso de memoria
-        from sklearn.utils import parallel_backend
+        from joblib import parallel_backend
         grid_search_rf = GridSearchCV(
             estimator=rf,
             param_grid=param_grid_rf,
@@ -1103,6 +1110,44 @@ class ModelTrainer:
 
         logger.info("🎉 Proceso de guardado completado.")
 
+    def load_trained_models(self) -> Optional[Dict[str, Dict[str, Any]]]:
+        """
+        Carga modelos entrenados previamente guardados.
+
+        Returns:
+            Diccionario con modelos cargados o None si no existen
+        """
+        logger.info("="*50)
+        logger.info("INTENTANDO CARGAR MODELOS GUARDADOS")
+        logger.info("="*50)
+
+        models_dir = self.config['paths']['models_dir']
+        trained_models = {}
+
+        model_names = [
+            'logistic_regression', 'decision_tree', 'xgboost', 'knn',
+            'random_forest', 'svm', 'mlp', 'voting_classifier', 'stacking_classifier'
+        ]
+
+        models_found = 0
+        for model_name in model_names:
+            model_path = models_dir / f"{model_name}_model.pkl"
+            if model_path.exists():
+                try:
+                    model = joblib.load(model_path)
+                    trained_models[model_name] = {'model': model}
+                    models_found += 1
+                    logger.info(f"✅ Modelo {model_name} cargado exitosamente")
+                except Exception as e:
+                    logger.warning(f"❌ Error cargando {model_name}: {e}")
+
+        if models_found == 0:
+            logger.info("No se encontraron modelos guardados")
+            return None
+        else:
+            logger.info(f"Se cargaron {models_found} modelos exitosamente")
+            return trained_models
+
     def train_all_models(self, X_train: pd.DataFrame, X_test: pd.DataFrame,
                         y_train: pd.Series, y_test: pd.Series,
                         selected_features: List[str]) -> Dict[str, Dict[str, Any]]:
@@ -1117,54 +1162,65 @@ class ModelTrainer:
 
         try:
             # 1. Logistic Regression
+            logger.info("Entrenando Logistic Regression...")
             trained_models['logistic_regression'] = self.train_logistic_regression(
                 X_train, X_test, y_train, y_test, selected_features
             )
 
             # 2. Decision Tree
+            logger.info("Entrenando Decision Tree...")
             trained_models['decision_tree'] = self.train_decision_tree(
                 X_train, X_test, y_train, y_test, selected_features
             )
 
             # 3. XGBoost
+            logger.info("Entrenando XGBoost...")
             trained_models['xgboost'] = self.train_xgboost(
                 X_train, X_test, y_train, y_test, selected_features
             )
 
             # 4. KNN
+            logger.info("Entrenando KNN...")
             trained_models['knn'] = self.train_knn(
                 X_train, X_test, y_train, y_test, selected_features
             )
 
             # 5. Random Forest
+            logger.info("Entrenando Random Forest...")
             trained_models['random_forest'] = self.train_random_forest(
                 X_train, X_test, y_train, y_test, selected_features
             )
 
             # 6. SVM
+            logger.info("Entrenando SVM...")
             trained_models['svm'] = self.train_svm(
                 X_train, X_test, y_train, y_test, selected_features
             )
 
             # 7. MLP
+            logger.info("Entrenando MLP...")
             trained_models['mlp'] = self.train_mlp(
                 X_train, X_test, y_train, y_test, selected_features
             )
 
             # 8. Voting Classifier
+            logger.info("Entrenando Voting Classifier...")
             trained_models['voting_classifier'] = self.train_voting_classifier(
                 X_train, X_test, y_train, y_test, selected_features, trained_models
             )
 
             # 9. Stacking Classifier
+            logger.info("Entrenando Stacking Classifier...")
             trained_models['stacking_classifier'] = self.train_stacking_classifier(
                 X_train, X_test, y_train, y_test, selected_features, trained_models
             )
 
             # 10. Comparar todos los modelos
+            logger.info("Comparando todos los modelos...")
             comparison_df = self.compare_all_models(y_test, trained_models)
 
             # 11. Guardar modelos
+            logger.info("Guardando modelos...")
             self.save_all_models(trained_models)
 
             logger.info("🎉 ENTRENAMIENTO COMPLETADO EXITOSAMENTE")

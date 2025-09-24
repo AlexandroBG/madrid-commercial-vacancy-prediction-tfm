@@ -112,16 +112,33 @@ def run_feature_engineering(df: pd.DataFrame, force_reload: bool = False) -> dic
     preprocessor = DataPreprocessor()
     datasets = preprocessor.preprocess_data(df)
 
-    # Selección de características usando todas las variables disponibles
+    # Selección de características usando TODOS los métodos disponibles
     feature_selector = FeatureSelector()
-    selected_features = feature_selector.run_boruta_selection(
+    selection_results = feature_selector.run_all_selection_methods(
         datasets['X_train_scaled'],
-        datasets['y_train']
+        datasets['X_test_scaled'],
+        datasets['y_train'],
+        datasets['y_test']
     )
 
-    logger.info(f"Características seleccionadas: {len(selected_features)}")
+    # Usar las características de Boruta como predeterminadas (o el mejor método)
+    selected_features = selection_results['selected_features'].get('Boruta', [])
+    if not selected_features:
+        # Si Boruta falló, usar RFECV o el primer método que tenga resultados
+        for method in ['RFECV', 'Stepwise', 'SBF', 'SHAP']:
+            if selection_results['selected_features'].get(method):
+                selected_features = selection_results['selected_features'][method]
+                logger.info(f"Usando características de {method} como respaldo")
+                break
 
-    return {'datasets': datasets, 'selected_features': selected_features}
+    logger.info(f"Características seleccionadas: {len(selected_features)}")
+    logger.info(f"Métodos ejecutados: {list(selection_results['selected_features'].keys())}")
+
+    return {
+        'datasets': datasets,
+        'selected_features': selected_features,
+        'all_selection_results': selection_results
+    }
 
 def train_and_evaluate_models(datasets: dict, selected_features: list,
                             force_retrain: bool = False) -> dict:
@@ -154,19 +171,19 @@ def train_and_evaluate_models(datasets: dict, selected_features: list,
             logger.info("Modelos cargados desde cache")
         else:
             logger.info("Entrenando modelos desde cero...")
-            trained_models = trainer.train_all_models(X_train, y_train)
+            trained_models = trainer.train_all_models(X_train, X_test, y_train, y_test, selected_features)
     else:
         logger.info("Reentrenando todos los modelos...")
-        trained_models = trainer.train_all_models(X_train, y_train)
+        trained_models = trainer.train_all_models(X_train, X_test, y_train, y_test, selected_features)
 
     # Evaluar modelos
     evaluator = ModelEvaluator()
     results = evaluator.evaluate_all_models(trained_models, X_test, y_test)
 
     # Encontrar mejor modelo
-    best_model_info = evaluator.get_best_model(results)
+    best_model_info = evaluator.get_best_model(results['individual_results'])
 
-    logger.info(f"Mejor modelo: {best_model_info['name']} (AUC: {best_model_info['auc']:.4f})")
+    logger.info(f"Mejor modelo: {best_model_info['name']} (AUC: {best_model_info['score']:.4f})")
 
     return {
         'trained_models': trained_models,
@@ -194,11 +211,11 @@ def generate_reports_and_visualizations(df: pd.DataFrame, results: dict,
     evaluator.plot_confusion_matrices(results['evaluation_results'])
     evaluator.create_metrics_comparison_table(results['evaluation_results'])
 
-    # Análisis de interpretabilidad
+    # Análisis de interpretabilidad SHAP completo
     if results['best_model']:
-        evaluator.generate_shap_analysis(
-            results['best_model']['model'],
-            results['datasets']['X_test'][selected_features]
+        evaluator.generate_comprehensive_shap_analysis(
+            results['best_model'],
+            datasets['X_test_scaled'][selected_features]
         )
 
     # Casos de uso específicos
@@ -261,15 +278,31 @@ def main():
                 feature_results['selected_features']
             )
 
+        # 5. Mostrar resumen de selección de características
+        if 'all_selection_results' in feature_results:
+            logger.info("\nRESUMEN DE SELECCIÓN DE CARACTERÍSTICAS:")
+            logger.info("="*50)
+            for method, features in feature_results['all_selection_results']['selected_features'].items():
+                logger.info(f"{method}: {len(features)} características")
+
+            if 'evaluation_results' in feature_results['all_selection_results']:
+                eval_results = feature_results['all_selection_results']['evaluation_results']
+                logger.info("\nRendimiento por método de selección:")
+                for _, row in eval_results.iterrows():
+                    logger.info(f"{row['nombre']}: AUC={row['auc']:.4f}, Variables={row['num_variables']}")
+
         # Resumen ejecutivo
         logger.info("\n" + "="*80)
         logger.info("RESUMEN EJECUTIVO")
         logger.info("="*80)
         logger.info(f"Dataset procesado: {df_clean.shape[0]:,} registros")
         logger.info(f"Características seleccionadas: {len(feature_results['selected_features'])}")
+        logger.info(f"Métodos de selección ejecutados: {len(feature_results.get('all_selection_results', {}).get('selected_features', {}))}")
         logger.info(f"Mejor modelo: {model_results['best_model']['name']}")
-        logger.info(f"AUC del mejor modelo: {model_results['best_model']['auc']:.4f}")
-        logger.info(f"F1-Score: {model_results['best_model']['f1']:.4f}")
+        logger.info(f"AUC del mejor modelo: {model_results['best_model']['score']:.4f}")
+        if 'metrics' in model_results['best_model']:
+            logger.info(f"F1-Score: {model_results['best_model']['metrics']['f1_score']:.4f}")
+            logger.info(f"Accuracy: {model_results['best_model']['metrics']['accuracy']:.4f}")
         logger.info("="*80)
         logger.info("✅ PIPELINE COMPLETADO EXITOSAMENTE")
 

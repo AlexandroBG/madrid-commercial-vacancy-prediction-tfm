@@ -1,0 +1,16 @@
+Total_Poblacion
+desc_seccion_sin actividad
+desc_tipo_acceso_local_puerta calle
+desc_tipo_acceso_local_pc asociado
+desc_seccion_construccion
+desc_seccion_hosteleria
+desc_seccion_actividades sanitarias y de servicios sociales
+Renta_Media
+desc_seccion_actividades de organizaciones y organismos extraterritoriales
+desc_seccion_informacion y comunicaciones
+desc_seccion_industria manufacturera
+desc_seccion_transporte y almacenamiento
+desc_seccion_actividades inmobiliarias
+desc_seccion_otros servicios
+desc_seccion_comercio al por mayor y al por menor; reparacion de vehiculos de motor y motocicletas
+desc_seccion_actividades profesionales, cientificas y tecnicas

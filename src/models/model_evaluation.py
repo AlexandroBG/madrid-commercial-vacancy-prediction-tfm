@@ -357,7 +357,7 @@ class ModelEvaluator:
             figures_dir = self.config['paths']['figures_dir']
             summary_path = figures_dir / "shap_summary_plot.png"
             plt.tight_layout()
-            plt.savefig(summary_path, dpi=self.plot_config['dpi'], bbox_inches='tight')
+            plt.savefig(summary_path, dpi=self.config['plot_config']['dpi'], bbox_inches='tight')
             plt.close()
 
             # Ranking de importancia
@@ -381,6 +381,154 @@ class ModelEvaluator:
         except Exception as e:
             logger.error(f"Error en análisis SHAP: {e}")
             return None
+
+    def generate_comprehensive_shap_analysis(self, best_model_info: dict,
+                                           X_test: pd.DataFrame,
+                                           sample_size: int = 100000) -> dict:
+        """
+        Genera análisis SHAP completo del mejor modelo con múltiples visualizaciones.
+
+        Args:
+            best_model_info: Información del mejor modelo
+            X_test: Dataset de prueba
+            sample_size: Tamaño de muestra para análisis
+
+        Returns:
+            Diccionario con rutas de archivos generados y resultados
+        """
+        logger.info("="*60)
+        logger.info("GENERANDO ANÁLISIS SHAP COMPLETO DEL MEJOR MODELO")
+        logger.info("="*60)
+
+        if not best_model_info:
+            logger.error("No se proporcionó información del mejor modelo")
+            return {}
+
+        model = best_model_info['model']
+        model_name = best_model_info['name']
+
+        logger.info(f"Analizando modelo: {model_name}")
+
+        try:
+            import shap
+            import matplotlib.pyplot as plt
+
+            # Submuestreo para análisis
+            sample_size = min(sample_size, len(X_test))
+            X_sample = X_test.sample(n=sample_size, random_state=42)
+            logger.info(f"Muestra para análisis SHAP: {X_sample.shape}")
+
+            # Crear explainer específico para el tipo de modelo
+            if 'xgb' in model_name.lower() or hasattr(model, 'predict_proba'):
+                explainer = shap.Explainer(
+                    lambda X: model.predict_proba(pd.DataFrame(X, columns=X_test.columns))[:, 1],
+                    X_sample
+                )
+            else:
+                explainer = shap.Explainer(model, X_sample)
+
+            # Calcular valores SHAP
+            logger.info("Calculando valores SHAP...")
+            shap_values = explainer(X_sample)
+
+            figures_dir = self.config['paths']['figures_dir']
+            reports_dir = self.config['paths']['reports_dir']
+            results = {}
+
+            # 1. Summary plot (swarm/violin)
+            logger.info("Generando summary plot...")
+            plt.figure(figsize=(12, 8))
+            shap.summary_plot(shap_values, X_sample, max_display=20, show=False)
+            summary_path = figures_dir / f"shap_summary_{model_name}.png"
+            plt.savefig(summary_path, dpi=300, bbox_inches='tight')
+            plt.close()
+            results['summary_plot'] = str(summary_path)
+
+            # 2. Bar plot de importancia
+            logger.info("Generando bar plot de importancia...")
+            plt.figure(figsize=(10, 8))
+            shap.plots.bar(shap_values, max_display=20, show=False)
+            bar_path = figures_dir / f"shap_bar_{model_name}.png"
+            plt.savefig(bar_path, dpi=300, bbox_inches='tight')
+            plt.close()
+            results['bar_plot'] = str(bar_path)
+
+            # 3. Waterfall plot para una observación específica
+            logger.info("Generando waterfall plot...")
+            plt.figure(figsize=(10, 6))
+            # Seleccionar una observación interesante (ej: mayor valor SHAP)
+            idx_max_impact = np.abs(shap_values.values).sum(axis=1).argmax()
+            shap.plots.waterfall(shap_values[idx_max_impact], max_display=15, show=False)
+            waterfall_path = figures_dir / f"shap_waterfall_{model_name}.png"
+            plt.savefig(waterfall_path, dpi=300, bbox_inches='tight')
+            plt.close()
+            results['waterfall_plot'] = str(waterfall_path)
+
+            # 4. Exportar importancias SHAP
+            logger.info("Exportando importancias SHAP...")
+            shap_importances = pd.DataFrame({
+                'variable': X_sample.columns,
+                'mean_abs_shap': np.abs(shap_values.values).mean(axis=0),
+                'mean_shap': shap_values.values.mean(axis=0),
+                'std_shap': shap_values.values.std(axis=0)
+            }).sort_values(by='mean_abs_shap', ascending=False)
+
+            # Guardar ranking completo
+            importance_path = reports_dir / f'shap_importances_{model_name}.csv'
+            shap_importances.to_csv(importance_path, index=False)
+            results['importances_file'] = str(importance_path)
+
+            # 5. Análisis de top variables
+            top_n = 10
+            top_variables = shap_importances.head(top_n)
+
+            logger.info(f"\n🔝 TOP {top_n} VARIABLES MÁS IMPORTANTES (SHAP):")
+            for idx, row in top_variables.iterrows():
+                direction = "↑" if row['mean_shap'] > 0 else "↓"
+                logger.info(f"{idx+1:2d}. {row['variable']:<40} {direction} "
+                           f"Impacto: {row['mean_abs_shap']:.4f}")
+
+            # 6. Crear plots de dependencia para top 5 variables
+            logger.info("Generando plots de dependencia...")
+            dependence_plots = []
+            for i, var in enumerate(top_variables['variable'].head(5)):
+                try:
+                    plt.figure(figsize=(8, 6))
+                    shap.plots.partial_dependence(
+                        var, model.predict_proba, X_sample, ice=False,
+                        model_expected_value=True, feature_expected_value=True, show=False
+                    )
+                    dep_path = figures_dir / f"shap_dependence_{model_name}_{var[:30]}.png"
+                    plt.savefig(dep_path, dpi=300, bbox_inches='tight')
+                    plt.close()
+                    dependence_plots.append(str(dep_path))
+                except Exception as e:
+                    logger.warning(f"No se pudo crear plot de dependencia para {var}: {e}")
+
+            results['dependence_plots'] = dependence_plots
+
+            # 7. Resumen estadístico
+            results['summary_stats'] = {
+                'model_name': model_name,
+                'sample_size': len(X_sample),
+                'n_features': len(X_sample.columns),
+                'top_variable': top_variables.iloc[0]['variable'],
+                'top_variable_impact': float(top_variables.iloc[0]['mean_abs_shap']),
+                'mean_prediction': float(shap_values.base_values.mean()),
+                'total_shap_magnitude': float(np.abs(shap_values.values).sum())
+            }
+
+            logger.info("="*60)
+            logger.info("ANÁLISIS SHAP COMPLETADO EXITOSAMENTE")
+            logger.info(f"Archivos generados: {len([v for v in results.values() if isinstance(v, str)])}")
+            logger.info("="*60)
+
+            return results
+
+        except Exception as e:
+            logger.error(f"Error en análisis SHAP completo: {e}")
+            logger.exception("Detalles del error:")
+            return {}
 
     def analyze_specific_cases(self, df: pd.DataFrame, best_model_info: Dict[str, Any]) -> None:
         """
