@@ -46,43 +46,71 @@ Madrid, como capital económica de España, concentra más de 60,000 establecimi
 
 ```
 madrid-commercial-prediction/
+├── Makefile
 ├── README.md
+├── TFM-Alexandro Bazan Guardia.pdf
+├── VERIFICATION.md
 ├── requirements.txt
 ├── setup.py
-├── .gitignore
-├── .env.example
+├── variables_boruta.txt
+├── variables_rfecv.txt
+├── variables_sbf.txt
+├── variables_shap.txt
+├── variables_stepwise.txt
 ├── data/
 │   ├── raw/                    # Datos originales
+│   │   ├── Actividades Economicas de Madrid.csv
+│   │   ├── MadridActividades.csv
+│   │   ├── RentaPOB.xlsx
+│   │   └── actividadeconomicamadrid.csv
 │   ├── processed/              # Datos procesados
+│   │   └── df_limpio.pkl
 │   └── external/               # Fuentes externas
 ├── src/
+│   ├── __init__.py
+│   ├── main.py                 # Pipeline principal
 │   ├── data/
+│   │   ├── __init__.py
 │   │   ├── data_loader.py      # Carga de datos
 │   │   ├── data_cleaner.py     # Limpieza y normalización
 │   │   └── data_preprocessor.py # Preprocesamiento
 │   ├── features/
-│   │   ├── feature_selector.py  # Selección de variables (Boruta, RFECV, etc.)
-│   │   └── feature_engineering.py
+│   │   ├── __init__.py
+│   │   └── feature_selector.py  # Selección de variables (Boruta, RFECV, etc.)
 │   ├── models/
+│   │   ├── __init__.py
 │   │   ├── train_models.py     # Entrenamiento de 9 modelos
 │   │   └── model_evaluation.py # Evaluación y comparación
-│   ├── visualization/
-│   │   ├── plots.py            # Gráficos comparativos
-│   │   └── maps.py             # Mapas geoespaciales
 │   └── utils/
+│       ├── __init__.py
 │       ├── config.py           # Configuración
 │       └── helpers.py          # Utilidades
-├── notebooks/
-│   ├── 01_exploratory_data_analysis.ipynb
-│   ├── 02_feature_engineering.ipynb
-│   ├── 03_model_training.ipynb
-│   └── 04_model_interpretation.ipynb
 ├── results/
 │   ├── figures/                # Curvas ROC, matrices de confusión, SHAP
-│   ├── reports/                # Reportes CSV y HTML
-│   └── predictions/            # Predicciones finales
-└── models/
-    └── saved_models/           # Modelos entrenados (.pkl)
+│   ├── logs/                   # Archivos de log
+│   │   └── madrid_prediction.log
+│   └── reports/                # Reportes CSV y HTML
+│       ├── feature_selection_consensus.csv
+│       ├── model_comparison.csv
+│       └── shap_importances.csv
+└── models/                     # Modelos entrenados y artefactos
+    ├── decision_tree_model.pkl
+    ├── knn_model.pkl
+    ├── logistic_regression_model.pkl
+    ├── mlp_model.pkl
+    ├── random_forest_model.pkl
+    ├── stacking_classifier_model.pkl
+    ├── svm_model.pkl
+    ├── voting_classifier_model.pkl
+    ├── xgboost_model.pkl
+    ├── scaler.joblib
+    ├── selected_features_*.pkl  # Features seleccionadas
+    ├── X_train.joblib
+    ├── X_train_scaled.joblib
+    ├── X_test.joblib
+    ├── X_test_scaled.joblib
+    ├── y_train.joblib
+    └── y_test.joblib
 ```
 
 ## Instalación y Uso
@@ -143,19 +171,6 @@ python -m src.models.train_models
 # Solo evaluación
 python -m src.models.model_evaluation
 ```
-
-#### Uso con Notebooks Jupyter
-```bash
-jupyter notebook notebooks/
-```
-
-Los notebooks están organizados secuencialmente:
-1. `01_exploratory_data_analysis.ipynb` - Análisis exploratorio
-2. `02_feature_engineering.ipynb` - Ingeniería de características
-3. `03_model_training.ipynb` - Entrenamiento de modelos
-4. `04_model_interpretation.ipynb` - Interpretabilidad SHAP
-
-## Metodología Técnica
 
 ### Preprocesamiento de Datos
 
